@@ -16,9 +16,9 @@
     </license>
   </licenses>
   <scm>
-    <connection>scm:git:git@github.com:venkatramanm/beckn-registry.git</connection>
-    <developerConnection>scm:git:git@github.com:venkatramanm/beckn-registry.git</developerConnection>
-    <url>git@github.com:venkatramanm/beckn-registry.git</url>
+    <connection>scm:git:git@github.com:poutinedevicto/beckn-registry.git</connection>
+    <developerConnection>scm:git:git@github.com:poutinedevicto/beckn-registry.git</developerConnection>
+    <url>git@github.com:poutinedevicto/beckn-registry.git</url>
   </scm>
   <developers>
     <developer> 
