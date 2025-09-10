@@ -29,11 +29,7 @@
   </developers>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-<<<<<<< HEAD
-        <revision>2.10</revision>
-=======
         <revision>2.14</revision>
->>>>>>> 1c5dda1 (Update pom.xml with latest version at https://mvnrepository.com/)
     </properties>
     <build>
         <plugins>
