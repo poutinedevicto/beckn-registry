@@ -1,4 +1,7 @@
 pipeline {
+  tools {
+    maven 'Maven'
+  }
   agent {
     kubernetes {
       yaml '''
@@ -32,6 +35,18 @@ spec:
     DH_CREDS=credentials('dockerhub-strottier-creds')
   }
   stages {
+    stage('Checkout') {
+      steps {
+        git url: 'https://github.com/poutinedevicto/beckn-registry.git', branch: 'maven_repo_build'
+      }
+    }
+    stage('Maven build') {
+      steps {
+        withMaven() {
+          sh 'mvn clean install'
+        }
+      }
+    }    
     stage('Build with Buildah using Dockerfile in provided Git repo root') {
       steps {
         container('buildah') {
