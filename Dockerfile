@@ -1,4 +1,4 @@
-FROM docker.io/fidedocker/registry:k8s_v3
+FROM docker.io/fidedocker/registry:latest
 
 # OVERRIDE: Use custom service-start script
 COPY image_override/bin/service-start /registry/bin/service-start
