@@ -10,3 +10,4 @@ database/
 /.gradle/
 .keystore
 /docs/_build/
+Session.vim

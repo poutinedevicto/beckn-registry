@@ -1,0 +1,9 @@
+#!/bin/sh
+crond -bS;
+
+source overrideProperties/config/envvars
+
+# LOCAVORA calling JettyServer in fg
+echo "Starting Beckn registry (java) with dport=${dport} and wport=${wport}"
+
+/usr/bin/java -Xmx4g -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=tmp/java.hprof -XX:-OmitStackTraceInFastThrow -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=${dport}, -DPORT=${wport} -Dswf.env=development -Dswf.pidfile=tmp/pid -Dderby.locks.waitTimeout=10 -DSystem.out.close=true -DSystem.err.close=true -DSystem.in.close=true -cp overrideProperties/:target/classes/${cpath}:target/dependency/* com.venky.swf.JettyServer
