@@ -1,0 +1,87 @@
+pipeline {
+  tools {
+    maven 'Maven'
+  }
+  agent {
+    kubernetes {
+      yaml '''
+apiVersion: v1
+kind: Pod
+metadata:
+  name: buildah
+spec:
+  containers:
+  - name: buildah
+    image: quay.io/buildah/stable:v1.23.1
+    command:
+    - cat
+    tty: true
+    securityContext:
+      privileged: true
+    volumeMounts:
+      - name: varlibcontainers
+        mountPath: /var/lib/containers
+  volumes:
+    - name: varlibcontainers
+'''   
+    }
+  }
+  options {
+    buildDiscarder(logRotator(numToKeepStr: '10'))
+    durabilityHint('PERFORMANCE_OPTIMIZED')
+    disableConcurrentBuilds()
+  }
+  environment {
+    IMAGE_REGISTRY_CREDS=credentials('harbor-default-credentials')
+  }
+  stages {
+    stage('Checkout') {
+      steps {
+        git url: 'https://github.com/poutinedevicto/beckn-registry.git', branch: 'maven_repo_build'
+      }
+    }
+    stage('Maven build') {
+      steps {
+        withMaven() {
+          sh 'mvn clean install'
+        }
+      }
+    }    
+    stage('Build with Buildah using Dockerfile in provided Git repo root') {
+      steps {
+        container('buildah') {
+          sh 'buildah build -t harbor.lan/locavora/beckn-registry:1.0 .'
+        }
+      }
+    }
+    stage('Login to local Harbor registry') {
+      steps {
+        container('buildah') {
+          sh 'echo $IMAGE_REGISTRY_CREDS_PSW | buildah login -u $IMAGE_REGISTRY_CREDS_USR --password-stdin harbor.lan'
+        }
+      }
+    }
+    stage('tag image') {
+      steps {
+        container('buildah') {
+          sh 'buildah tag locavora/beckn-registry:1.0 locavora/beckn-registry:latest'
+        }
+      }
+    }
+    stage('push image') {
+      steps {
+        container('buildah') {
+          sh 'buildah push locavora/beckn-registry:1.0'
+          sh 'buildah push locavora/beckn-registry:latest'
+        }
+      }
+    }
+  }
+  post {
+    always {
+      container('buildah') {
+        sh 'buildah logout harbor.lan'
+      }
+    }
+  }
+}
