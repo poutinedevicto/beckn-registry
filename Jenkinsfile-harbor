@@ -78,15 +78,15 @@ spec:
     stage('tag image') {
       steps {
         container('buildah') {
-          sh 'buildah tag locavora/beckn-registry:1.0 locavora/beckn-registry:latest'
+          sh 'buildah tag harbor.lan/locavora/beckn-registry:1.0 harbor.lan/locavora/beckn-registry:latest'
         }
       }
     }
     stage('push image') {
       steps {
         container('buildah') {
-          sh 'buildah push locavora/beckn-registry:1.0'
-          sh 'buildah push locavora/beckn-registry:latest'
+          sh 'buildah push harbor.lan/locavora/beckn-registry:1.0'
+          sh 'buildah push harbor.lan/locavora/beckn-registry:latest'
         }
       }
     }
