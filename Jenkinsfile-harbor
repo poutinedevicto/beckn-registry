@@ -5,6 +5,7 @@ pipeline {
   agent {
     kubernetes {
       yaml '''
+
 apiVersion: v1
 kind: Pod
 metadata:
@@ -21,8 +22,21 @@ spec:
     volumeMounts:
       - name: varlibcontainers
         mountPath: /var/lib/containers
+      - name: cacerts
+	# Base path for trusted CA certs on fedora
+        mountPath: /etc/pki/ca-trust/extracted
   volumes:
-    - name: varlibcontainers
+  - name: cacerts
+    csi:
+      # Insert our root CA cert into trusted CA in containers so that https access to our internal harbor registry is possible
+      driver: cacerts.csi.cert-manager.io
+      readOnly: true
+      volumeAttributes:
+        os: fedora
+        # must prefix caProviderClasses with ns
+        caProviderClasses: cert-manager/locavora-ca-provider
+  - name: varlibcontainers
+  restartPolicy: Never
 '''   
     }
   }
