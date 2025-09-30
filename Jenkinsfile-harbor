@@ -4,8 +4,9 @@ pipeline {
   }
   agent {
     kubernetes {
+      label 'jenkins-agent-buildah'
+      idleMinutes 60 // Keep the Pod alive for 60 minutes after the build
       yaml '''
-
 apiVersion: v1
 kind: Pod
 metadata:
