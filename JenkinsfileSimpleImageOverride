@@ -4,8 +4,6 @@ pipeline {
   }
   agent {
     kubernetes {
-      label 'jenkins-agent-buildah'
-      idleMinutes 60 // Keep the Pod alive for 60 minutes after the build
       yaml '''
 apiVersion: v1
 kind: Pod
@@ -23,21 +21,8 @@ spec:
     volumeMounts:
       - name: varlibcontainers
         mountPath: /var/lib/containers
-      - name: cacerts
-        # Base path for trusted CA certs on fedora
-        mountPath: /etc/pki/ca-trust/extracted
   volumes:
-  - name: cacerts
-    csi:
-      # Insert our root CA cert into trusted CA in containers so that https access to our internal harbor registry is possible
-      driver: cacerts.csi.cert-manager.io
-      readOnly: true
-      volumeAttributes:
-        os: fedora
-        # must prefix caProviderClasses with ns
-        caProviderClasses: cert-manager/locavora-ca-provider
-  - name: varlibcontainers
-  restartPolicy: Never
+    - name: varlibcontainers
 '''   
     }
   }
@@ -47,7 +32,7 @@ spec:
     disableConcurrentBuilds()
   }
   environment {
-    IMAGE_REGISTRY_CREDS=credentials('harbor-default-credentials')
+    DH_CREDS=credentials('dockerhub-strottier-creds')
   }
   stages {
     stage('Checkout') {
@@ -65,29 +50,29 @@ spec:
     stage('Build with Buildah using Dockerfile in provided Git repo root') {
       steps {
         container('buildah') {
-          sh 'buildah build -t harbor.lan/locavora/beckn-registry:1.0 .'
+          sh 'buildah build -t strottier007/beckn-registry:1.0 .'
         }
       }
     }
-    stage('Login to local Harbor registry') {
+    stage('Login to Docker Hub') {
       steps {
         container('buildah') {
-          sh 'echo $IMAGE_REGISTRY_CREDS_PSW | buildah login -u $IMAGE_REGISTRY_CREDS_USR --password-stdin harbor.lan'
+          sh 'echo $DH_CREDS_PSW | buildah login -u $DH_CREDS_USR --password-stdin docker.io'
         }
       }
     }
     stage('tag image') {
       steps {
         container('buildah') {
-          sh 'buildah tag harbor.lan/locavora/beckn-registry:1.0 harbor.lan/locavora/beckn-registry:latest'
+          sh 'buildah tag strottier007/beckn-registry:1.0 strottier007/beckn-registry:latest'
         }
       }
     }
     stage('push image') {
       steps {
         container('buildah') {
-          sh 'buildah push harbor.lan/locavora/beckn-registry:1.0'
-          sh 'buildah push harbor.lan/locavora/beckn-registry:latest'
+          sh 'buildah push strottier007/beckn-registry:1.0'
+          sh 'buildah push strottier007/beckn-registry:latest'
         }
       }
     }
@@ -95,7 +80,7 @@ spec:
   post {
     always {
       container('buildah') {
-        sh 'buildah logout harbor.lan'
+        sh 'buildah logout docker.io'
       }
     }
   }
