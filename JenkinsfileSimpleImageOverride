@@ -1,86 +1,74 @@
 pipeline {
-  tools {
-    maven 'Maven'
-  }
   agent {
+    // LOCAVORA_TODO agent also defined in other Jenkinsfile 
     kubernetes {
+      label 'jenkins-agent-kaniko-remote-harbor'
+      idleMinutes 60 // Keep the Pod alive for 60 minutes after the build
       yaml '''
 apiVersion: v1
 kind: Pod
 metadata:
-  name: buildah
+  name: kaniko-builder
 spec:
-  containers:
-  - name: buildah
-    image: quay.io/buildah/stable:v1.23.1
-    command:
-    - cat
-    tty: true
-    securityContext:
-      privileged: true
-    volumeMounts:
-      - name: varlibcontainers
-        mountPath: /var/lib/containers
   volumes:
-    - name: varlibcontainers
+    - name: docker-config-secret
+      secret:
+        # Secret provient de Vault via un External Secret
+        secretName: harbor-beckn-locavora-rw-external-secret
+    # Volume pour stocker temporairement le contexte (code source) et l'image de sortie
+    #- name: shared-data
+    #  emptyDir: {}
+  
+  containers:  
+  - name: kaniko
+    # 'latest' aussi disponible mais 'debug' init. parce que sh dispo
+    image: martizih/kaniko:debug
+    # LOCAVORA - on execute sleep infinity to keep the container running
+    # les steps "container('kaniko')" vont exec des commandes dans ce container
+    command:
+      - /busybox/sh
+      - -c
+      - "sleep infinity"
+        
+    volumeMounts:
+      - name: docker-config-secret
+        mountPath: /kaniko/.docker
+        readOnly: true
+
+    resources:
+      requests:
+        # LOCAVORA - max total ephemeral-storage per node under GKE 
+        #            is 10Gi, and the other container (jnlp) requests 1Gi 
+        ephemeral-storage: 9Gi
+
+  restartPolicy: Never
 '''   
     }
+  }
+  environment {
+    DOCKERFILE_NAME = 'DockerfileSimpleImageOverride'
+    REGISTRY_NAME =   'harbor.beckn.locavora.org'
+    IMAGE_NAME =      'locavora-public/beckn-registry'
+    CACHE_NAME =      'locavora/dockerfile-build-cache'
   }
   options {
     buildDiscarder(logRotator(numToKeepStr: '10'))
     durabilityHint('PERFORMANCE_OPTIMIZED')
     disableConcurrentBuilds()
   }
-  environment {
-    DH_CREDS=credentials('dockerhub-strottier-creds')
-  }
   stages {
-    stage('Checkout') {
+
+    // LOCAVORA - attention on doit utiliser les apos (') pour que les variables d'environnement ne soient pas interprétées
+    stage('Build with Kaniko using $DOCKERFILE_NAME in provided repo') {
       steps {
-        git url: 'https://github.com/poutinedevicto/beckn-registry.git', branch: 'maven_repo_build'
-      }
-    }
-    stage('Maven build') {
-      steps {
-        withMaven() {
-          sh 'mvn clean install'
+        container('kaniko') {
+          sh 'cd webserver && \
+                /kaniko/executor -c . \
+                --dockerfile=$DOCKERFILE_NAME \
+                --cache=true \
+                --cache-repo $REGISTRY_NAME/$CACHE_NAME \
+                --destination $REGISTRY_NAME/$IMAGE_NAME:latest'
         }
-      }
-    }    
-    stage('Build with Buildah using Dockerfile in provided Git repo root') {
-      steps {
-        container('buildah') {
-          sh 'buildah build -t strottier007/beckn-registry:1.0 .'
-        }
-      }
-    }
-    stage('Login to Docker Hub') {
-      steps {
-        container('buildah') {
-          sh 'echo $DH_CREDS_PSW | buildah login -u $DH_CREDS_USR --password-stdin docker.io'
-        }
-      }
-    }
-    stage('tag image') {
-      steps {
-        container('buildah') {
-          sh 'buildah tag strottier007/beckn-registry:1.0 strottier007/beckn-registry:latest'
-        }
-      }
-    }
-    stage('push image') {
-      steps {
-        container('buildah') {
-          sh 'buildah push strottier007/beckn-registry:1.0'
-          sh 'buildah push strottier007/beckn-registry:latest'
-        }
-      }
-    }
-  }
-  post {
-    always {
-      container('buildah') {
-        sh 'buildah logout docker.io'
       }
     }
   }
