@@ -62,8 +62,7 @@ spec:
     stage('Build with Kaniko using $DOCKERFILE_NAME in provided repo') {
       steps {
         container('kaniko') {
-          sh 'cd webserver && \
-                /kaniko/executor -c . \
+          sh '/kaniko/executor -c . \
                 --dockerfile=$DOCKERFILE_NAME \
                 --cache=true \
                 --cache-repo $REGISTRY_NAME/$CACHE_NAME \
